@@ -677,6 +677,13 @@ class GameState:  #trạng thái và luật chơi cờ vua
                     reversed_row.append(color + piece[1])
             reversed_board.append(reversed_row)
         return reversed_board
+    
+    def get_state_id(self):
+        board_str = "".join(["".join(row) for row in self.board])
+        castling = f"{int(self.current_castling_rights.wks)}{int(self.current_castling_rights.wqs)}{int(self.current_castling_rights.bks)}{int(self.current_castling_rights.bqs)}"
+        ep = str(self.enpassant_possible) if self.enpassant_possible else "-"
+        turn = "w" if self.white_to_move else "b"
+        return f"{board_str}|{turn}|{castling}|{ep}"
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -759,10 +766,3 @@ class Move:
         if self.is_capture:
             move_string += "x"
         return move_string + end_square
-    
-    def get_state_id(self):
-        board_str = "".join(["".join(row) for row in self.board])
-        castling = f"{int(self.current_castling_rights.wks)}{int(self.current_castling_rights.wqs)}{int(self.current_castling_rights.bks)}{int(self.current_castling_rights.bqs)}"
-        ep = str(self.enpassant_possible) if self.enpassant_possible else "-"
-        turn = "w" if self.white_to_move else "b"
-        return f"{board_str}|{turn}|{castling}|{ep}"
