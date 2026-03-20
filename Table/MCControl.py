@@ -33,7 +33,7 @@ class MCControl:
             
             done = False
             while not done:
-                state = self.env.state.getStateId()
+                state = self.env.state.get_state_id()
                 action = self.policy()
                 
                 _, agent_reward, done = self.env.step(action)
@@ -53,7 +53,7 @@ class MCControl:
                 self.improve(steps)
     
     def policy(self):
-        s = self.env.state.getStateId()
+        s = self.env.state.get_state_id()
         qs = []
         actions = self.env.state.getValidMoves()
         for a in actions:
