@@ -9,45 +9,43 @@ class GameState:  #trạng thái và luật chơi cờ vua
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp"],
             ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]]
-        self.moveFunctions = {"p": self.getPawnMoves, 
-                              "R": self.getRookMoves, 
-                              "N": self.getKnightMoves, 
-                              "B": self.getBishopMoves, 
-                              "Q": self.getQueenMoves, 
+        self.moveFunctions = {"p": self.getPawnMoves,
+                              "R": self.getRookMoves,
+                              "N": self.getKnightMoves,
+                              "B": self.getBishopMoves,
+                              "Q": self.getQueenMoves,
                               "K": self.getKingMoves}
-        
-        self.white_to_move = True  # quân trắng đi trước
+
+        self.white_to_move = True       # quân trắng đi trước
         self.move_log = []
-        self.white_king_location = (7, 4) 
-        self.black_king_location = (0, 4)   
-        self.stalemate = False  # cờ hòa
-        self.checkmate = False 
-        self.in_check = False  # vua đang bị chiếu 
-        self.pins = []   # danh sách quân bị ghim 
-        self.checks = [] # danh sách quân chiếu vua
-        self.enpassant_possible = ()  # lưu vị trí có thể bắt tốt qua đường
+        self.white_king_location = (7, 4)
+        self.black_king_location = (0, 4)
+        self.stalemate = False          # cờ hòa
+        self.checkmate = False
+        self.in_check = False           # vua đang bị chiếu
+        self.pins = []                  # danh sách quân bị ghim
+        self.checks = []                # danh sách quân chiếu vua
+        self.enpassant_possible = ()    # lưu vị trí có thể bắt tốt qua đường
         self.enpassant_possible_log = [self.enpassant_possible]
         self.current_castling_rights = CastleRights(True, True, True, True)
-        self.castle_rights_log = [CastleRights(self.current_castling_rights.wks, 
+        self.castle_rights_log = [CastleRights(self.current_castling_rights.wks,
                                                self.current_castling_rights.bks,
-                                               self.current_castling_rights.wqs, 
+                                               self.current_castling_rights.wqs,
                                                self.current_castling_rights.bqs)]
 
-        # -------------------------------------------------------
-        # Luật hòa: 50 nước & lặp lại vị trí 3 lần
-        # -------------------------------------------------------
-        self.fifty_move_counter = 0          # đếm số nửa-nước (half-move) không ăn quân và không đi tốt
-        self.fifty_move_counter_log = [0]    # nhật ký để undo
-        self.threefold_repetition = False    # hòa do lặp 3 lần
-        # lưu lịch sử vị trí: key -> số lần xuất hiện
+        # ── Luật hòa: 50 nước ───────────────────────────────────────────────
+        self.fifty_move_counter = 0         # đếm nửa-nước không ăn quân / không đi tốt
+        self.fifty_move_counter_log = [0]
+
+        # ── Luật hòa: lặp lại vị trí 3 lần ─────────────────────────────────
+        self.threefold_repetition = False
         self.position_history = {}
-        # ghi nhận vị trí ban đầu
         initial_key = self._get_position_key()
         self.position_history[initial_key] = 1
 
-    # ------------------------------------------------------------------
-    # Tạo khóa định danh trạng thái bàn cờ (dùng cho luật lặp 3 lần)
-    # ------------------------------------------------------------------
+    # ────────────────────────────────────────────────────────────────────────
+    # Khóa định danh trạng thái (dùng cho luật lặp 3 lần)
+    # ────────────────────────────────────────────────────────────────────────
     def _get_position_key(self):
         """
         Tạo khóa duy nhất cho trạng thái bàn cờ hiện tại.
@@ -62,44 +60,115 @@ class GameState:  #trạng thái và luật chơi cờ vua
         ep_str = str(self.enpassant_possible)
         return f"{board_str}|{turn_str}|{castle_str}|{ep_str}"
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Luật hòa: thiếu quân (Insufficient Material)
+    # ────────────────────────────────────────────────────────────────────────
+    def insufficientMaterial(self):
+        """
+        Kiểm tra hòa do thiếu quân không thể chiếu hết.
+        Các trường hợp:
+            - Vua vs Vua
+            - Vua + Tượng vs Vua
+            - Vua + Mã    vs Vua
+            - Vua + Tượng vs Vua + Tượng (cùng màu ô)
+        """
+        white_pieces = []
+        black_pieces = []
+        white_bishops = []
+        black_bishops = []
+
+        for r in range(8):
+            for c in range(8):
+                piece = self.board[r][c]
+                if piece == "--" or piece[1] == "K":
+                    continue
+                if piece[0] == "w":
+                    white_pieces.append(piece[1])
+                    if piece[1] == "B":
+                        white_bishops.append((r + c) % 2)  # 0 = ô sáng, 1 = ô tối
+                else:
+                    black_pieces.append(piece[1])
+                    if piece[1] == "B":
+                        black_bishops.append((r + c) % 2)
+
+        # Vua vs Vua
+        if len(white_pieces) == 0 and len(black_pieces) == 0:
+            return True
+
+        # Vua + Tượng/Mã vs Vua (một bên trống)
+        if len(white_pieces) == 0 and len(black_pieces) == 1 and black_pieces[0] in ("B", "N"):
+            return True
+        if len(black_pieces) == 0 and len(white_pieces) == 1 and white_pieces[0] in ("B", "N"):
+            return True
+
+        # Vua + Tượng vs Vua + Tượng (cùng màu ô)
+        if (len(white_pieces) == 1 and white_pieces[0] == "B" and
+                len(black_pieces) == 1 and black_pieces[0] == "B" and
+                len(white_bishops) == 1 and len(black_bishops) == 1 and
+                white_bishops[0] == black_bishops[0]):
+            return True
+
+        return False
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Tiện ích: lý do hòa (dùng trong main.py để hiển thị thông báo)
+    # ────────────────────────────────────────────────────────────────────────
+    def getDrawReason(self):
+        """
+        Trả về chuỗi mô tả lý do hòa, hoặc None nếu chưa hòa.
+        Thứ tự ưu tiên kiểm tra quan trọng để hiển thị đúng lý do.
+        """
+        if not self.stalemate:
+            return None
+        if self.insufficientMaterial():
+            return "Hòa - Thiếu quân!"
+        if self.threefold_repetition:
+            return "Hòa - Lặp lại vị trí 3 lần!"
+        if self.fifty_move_counter >= 100:
+            return "Hòa - Quy tắc 50 nước!"
+        return "Hòa - Hết nước đi!"
+
+    # ────────────────────────────────────────────────────────────────────────
+    # makeMove
+    # ────────────────────────────────────────────────────────────────────────
     def makeMove(self, move, piecePromotion="Q"):
-        # Thực hiện 1 move và cập nhật trạng thái trò chơi
+        """Thực hiện 1 move và cập nhật toàn bộ trạng thái trò chơi."""
         self.board[move.start_row][move.start_col] = "--"
         self.board[move.end_row][move.end_col] = move.piece_moved
-        self.move_log.append(move) 
+        self.move_log.append(move)
         self.white_to_move = not self.white_to_move  # chuyển quyền cho đối phương
 
-        # cập nhật vị trí vua nếu cần
+        # cập nhật vị trí vua
         if move.piece_moved == "wK":
             self.white_king_location = (move.end_row, move.end_col)
         elif move.piece_moved == "bK":
             self.black_king_location = (move.end_row, move.end_col)
-        
+
         # tốt thăng cấp
-        if move.is_pawn_promotion: 
+        if move.is_pawn_promotion:
             self.board[move.end_row][move.end_col] = move.piece_moved[0] + piecePromotion
-        
-        # xoá tốt bị bắt sang đường
+
+        # xoá tốt bị bắt qua đường
         if move.is_enpassant_move:
             self.board[move.start_row][move.end_col] = "--"
-        
-        # cập nhật biến enpassant_possible
+
+        # cập nhật enpassant_possible
         if move.piece_moved[1] == "p" and abs(move.start_row - move.end_row) == 2:
             self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_col)
         else:
             self.enpassant_possible = ()
-        
+
         # nhập thành
-        if move.is_castle_move: 
-            if move.end_col - move.start_col == 2:   # king-side
+        if move.is_castle_move:
+            if move.end_col - move.start_col == 2:     # king-side
                 self.board[move.end_row][move.end_col - 1] = self.board[move.end_row][move.end_col + 1]
                 self.board[move.end_row][move.end_col + 1] = "--"
-            else:  # queen-side
+            else:                                       # queen-side
                 self.board[move.end_row][move.end_col + 1] = self.board[move.end_row][move.end_col - 2]
                 self.board[move.end_row][move.end_col - 2] = "--"
-        
+
         self.enpassant_possible_log.append(self.enpassant_possible)
-        
+
         # cập nhật quyền nhập thành
         self.updateCastleRights(move)
         self.castle_rights_log.append(CastleRights(self.current_castling_rights.wks,
@@ -107,35 +176,33 @@ class GameState:  #trạng thái và luật chơi cờ vua
                                                    self.current_castling_rights.wqs,
                                                    self.current_castling_rights.bqs))
 
-        # -------------------------------------------------------
-        # Cập nhật bộ đếm 50 nước
-        # Reset nếu đi tốt hoặc ăn quân; ngược lại tăng thêm 1
-        # -------------------------------------------------------
+        # ── Cập nhật bộ đếm 50 nước ─────────────────────────────────────────
         if move.piece_moved[1] == "p" or move.is_capture:
-            self.fifty_move_counter = 0
+            self.fifty_move_counter = 0     # reset khi đi tốt hoặc ăn quân
         else:
             self.fifty_move_counter += 1
         self.fifty_move_counter_log.append(self.fifty_move_counter)
 
-        # -------------------------------------------------------
-        # Ghi nhận vị trí mới vào lịch sử (luật lặp 3 lần)
-        # -------------------------------------------------------
+        # ── Ghi nhận vị trí (luật lặp 3 lần) ───────────────────────────────
         position_key = self._get_position_key()
         self.position_history[position_key] = self.position_history.get(position_key, 0) + 1
 
+    # ────────────────────────────────────────────────────────────────────────
+    # undoMove
+    # ────────────────────────────────────────────────────────────────────────
     def undoMove(self):
         if len(self.move_log) != 0:
             move = self.move_log.pop()
             self.board[move.start_row][move.start_col] = move.piece_moved
             self.board[move.end_row][move.end_col] = move.piece_captured
             self.white_to_move = not self.white_to_move
-            
-            # cập nhật lại vị trí vua
-            if move.piece_moved == "wK":  
+
+            # khôi phục vị trí vua
+            if move.piece_moved == "wK":
                 self.white_king_location = (move.start_row, move.start_col)
             elif move.piece_moved == "bK":
                 self.black_king_location = (move.start_row, move.start_col)
-            
+
             # hoàn tác bắt tốt qua đường
             if move.is_enpassant_move:
                 self.board[move.end_row][move.end_col] = "--"
@@ -147,47 +214,45 @@ class GameState:  #trạng thái và luật chơi cờ vua
             # hoàn tác quyền nhập thành
             self.castle_rights_log.pop()
             self.current_castling_rights = self.castle_rights_log[-1]
-            
+
             # hoàn tác nước nhập thành
             if move.is_castle_move:
                 if move.end_col - move.start_col == 2:  # king-side
                     self.board[move.end_row][move.end_col + 1] = self.board[move.end_row][move.end_col - 1]
                     self.board[move.end_row][move.end_col - 1] = '--'
-                else:  # queen-side
+                else:                                   # queen-side
                     self.board[move.end_row][move.end_col - 2] = self.board[move.end_row][move.end_col + 1]
                     self.board[move.end_row][move.end_col + 1] = '--'
-            
+
             self.checkmate = False
             self.stalemate = False
             self.threefold_repetition = False
 
-            # -------------------------------------------------------
-            # Hoàn tác bộ đếm 50 nước
-            # -------------------------------------------------------
+            # ── Hoàn tác bộ đếm 50 nước ─────────────────────────────────────
             self.fifty_move_counter_log.pop()
             self.fifty_move_counter = self.fifty_move_counter_log[-1]
 
-            # -------------------------------------------------------
-            # Hoàn tác lịch sử vị trí (luật lặp 3 lần)
-            # Xoá vị trí SAU KHI undo (tức vị trí hiện tại sau khi đã lùi quân)
-            # -------------------------------------------------------
+            # ── Hoàn tác lịch sử vị trí ─────────────────────────────────────
             position_key = self._get_position_key()
             if position_key in self.position_history:
                 self.position_history[position_key] -= 1
                 if self.position_history[position_key] <= 0:
                     del self.position_history[position_key]
 
+    # ────────────────────────────────────────────────────────────────────────
+    # updateCastleRights
+    # ────────────────────────────────────────────────────────────────────────
     def updateCastleRights(self, move):
         """Cập nhật quyền nhập thành sau mỗi nước đi."""
         if move.piece_captured == "wR":
-            if move.end_col == 0: 
+            if move.end_col == 0:
                 self.current_castling_rights.wqs = False
             elif move.end_col == 7:
                 self.current_castling_rights.wks = False
         elif move.piece_captured == "bR":
-            if move.end_col == 0: 
+            if move.end_col == 0:
                 self.current_castling_rights.bqs = False
-            elif move.end_col == 7:  
+            elif move.end_col == 7:
                 self.current_castling_rights.bks = False
 
         if move.piece_moved == "wK":
@@ -198,21 +263,26 @@ class GameState:  #trạng thái và luật chơi cờ vua
             self.current_castling_rights.bks = False
         elif move.piece_moved == 'wR':
             if move.start_row == 7:
-                if move.start_col == 0:  
+                if move.start_col == 0:
                     self.current_castling_rights.wqs = False
-                elif move.start_col == 7: 
+                elif move.start_col == 7:
                     self.current_castling_rights.wks = False
         elif move.piece_moved == 'bR':
             if move.start_row == 0:
-                if move.start_col == 0:  
+                if move.start_col == 0:
                     self.current_castling_rights.bqs = False
-                elif move.start_col == 7:  
+                elif move.start_col == 7:
                     self.current_castling_rights.bks = False
 
+    # ────────────────────────────────────────────────────────────────────────
+    # getValidMoves
+    # ────────────────────────────────────────────────────────────────────────
     def getValidMoves(self):
-        """Trả về toàn bộ nước đi hợp lệ."""
-        temp_castle_rights = CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
-                                          self.current_castling_rights.wqs, self.current_castling_rights.bqs)
+        """Trả về toàn bộ nước đi hợp lệ và cập nhật trạng thái hòa/chiếu hết."""
+        temp_castle_rights = CastleRights(self.current_castling_rights.wks,
+                                          self.current_castling_rights.bks,
+                                          self.current_castling_rights.wqs,
+                                          self.current_castling_rights.bqs)
         moves = []
         self.in_check, self.pins, self.checks = self.checkForPinsAndChecks()
 
@@ -222,16 +292,16 @@ class GameState:  #trạng thái và luật chơi cờ vua
         else:
             king_row = self.black_king_location[0]
             king_col = self.black_king_location[1]
-        
+
         if self.in_check:
-            if len(self.checks) == 1:  # chỉ 1 chiếu: chặn hoặc di vua
+            if len(self.checks) == 1:   # chỉ 1 chiếu: chặn hoặc di vua
                 moves = self.getAllPossibleMoves()
                 check = self.checks[0]
                 check_row = check[0]
                 check_col = check[1]
                 piece_checking = self.board[check_row][check_col]
                 valid_squares = []
-                
+
                 if piece_checking[1] == "N":
                     valid_squares = [(check_row, check_col)]
                 else:
@@ -240,15 +310,15 @@ class GameState:  #trạng thái và luật chơi cờ vua
                         valid_squares.append(valid_square)
                         if valid_square[0] == check_row and valid_square[1] == check_col:
                             break
-                
+
                 for i in range(len(moves) - 1, -1, -1):
                     if moves[i].piece_moved[1] != "K":
-                        if not (moves[i].end_row, moves[i].end_col) in valid_squares:
+                        if (moves[i].end_row, moves[i].end_col) not in valid_squares:
                             if moves[i].is_enpassant_move and (moves[i].start_row, moves[i].end_col) in valid_squares:
                                 pass
                             else:
                                 moves.remove(moves[i])
-            else:  # double check: vua phải di chuyển
+            else:   # double check: vua phải di chuyển
                 self.getKingMoves(king_row, king_col, moves)
         else:
             moves = self.getAllPossibleMoves()
@@ -257,35 +327,38 @@ class GameState:  #trạng thái và luật chơi cờ vua
             else:
                 self.getCastleMoves(self.black_king_location[0], self.black_king_location[1], moves)
 
-        # Kiểm tra chiếu hết / hết nước
+        # ── Kiểm tra chiếu hết / hết nước đi ────────────────────────────────
         if len(moves) == 0:
             if self.inCheck():
                 self.checkmate = True
             else:
-                self.stalemate = True  # hòa do hết nước đi
+                self.stalemate = True   # hòa do hết nước đi
         else:
             self.checkmate = False
             self.stalemate = False
             self.threefold_repetition = False
 
-        # -------------------------------------------------------
-        # Kiểm tra hòa do luật 50 nước
-        # 100 nửa-nước = 50 nước mỗi bên
-        # -------------------------------------------------------
-        if self.fifty_move_counter >= 100:
+        # ── Kiểm tra hòa do thiếu quân ──────────────────────────────────────
+        if not self.checkmate and self.insufficientMaterial():
             self.stalemate = True
 
-        # -------------------------------------------------------
-        # Kiểm tra hòa do lặp lại vị trí 3 lần
-        # -------------------------------------------------------
-        position_key = self._get_position_key()
-        if self.position_history.get(position_key, 0) >= 3:
-            self.threefold_repetition = True
+        # ── Kiểm tra hòa do luật 50 nước ────────────────────────────────────
+        if not self.checkmate and self.fifty_move_counter >= 100:
             self.stalemate = True
+
+        # ── Kiểm tra hòa do lặp lại vị trí 3 lần ───────────────────────────
+        if not self.checkmate:
+            position_key = self._get_position_key()
+            if self.position_history.get(position_key, 0) >= 3:
+                self.threefold_repetition = True
+                self.stalemate = True
 
         self.current_castling_rights = temp_castle_rights
         return moves
 
+    # ────────────────────────────────────────────────────────────────────────
+    # get_valid_moves_for_square
+    # ────────────────────────────────────────────────────────────────────────
     def get_valid_moves_for_square(self, row: int, col: int):
         piece = self.board[row][col]
         if piece == "--":
@@ -293,21 +366,27 @@ class GameState:  #trạng thái và luật chơi cờ vua
         valid_moves = self.getValidMoves()
         return [move for move in valid_moves if move.start_row == row and move.start_col == col]
 
+    # ────────────────────────────────────────────────────────────────────────
+    # inCheck / squareUnderAttack
+    # ────────────────────────────────────────────────────────────────────────
     def inCheck(self):
         if self.white_to_move:
             return self.squareUnderAttack(self.white_king_location[0], self.white_king_location[1])
         else:
             return self.squareUnderAttack(self.black_king_location[0], self.black_king_location[1])
- 
-    def squareUnderAttack(self, row, col): 
+
+    def squareUnderAttack(self, row, col):
         self.white_to_move = not self.white_to_move
         opponents_moves = self.getAllPossibleMoves()
         self.white_to_move = not self.white_to_move
         for move in opponents_moves:
             if move.end_row == row and move.end_col == col:
                 return True
-        return False 
+        return False
 
+    # ────────────────────────────────────────────────────────────────────────
+    # getAllPossibleMoves
+    # ────────────────────────────────────────────────────────────────────────
     def getAllPossibleMoves(self):
         moves = []
         for row in range(len(self.board)):
@@ -316,8 +395,11 @@ class GameState:  #trạng thái và luật chơi cờ vua
                 if (turn == "w" and self.white_to_move) or (turn == "b" and not self.white_to_move):
                     piece = self.board[row][col][1]
                     self.moveFunctions[piece](row, col, moves)
-        return moves 
+        return moves
 
+    # ────────────────────────────────────────────────────────────────────────
+    # checkForPinsAndChecks
+    # ────────────────────────────────────────────────────────────────────────
     def checkForPinsAndChecks(self):
         pins = []
         checks = []
@@ -379,6 +461,9 @@ class GameState:  #trạng thái và luật chơi cờ vua
                     checks.append((end_row, end_col, move[0], move[1]))
         return in_check, pins, checks
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Các hàm tính nước đi từng loại quân
+    # ────────────────────────────────────────────────────────────────────────
     def getPawnMoves(self, row, col, moves):
         piece_pinned = False
         pin_direction = ()
@@ -593,23 +678,8 @@ class GameState:  #trạng thái và luật chơi cờ vua
             reversed_board.append(reversed_row)
         return reversed_board
 
-    # ------------------------------------------------------------------
-    # Tiện ích: lấy loại hòa để hiển thị thông báo từ main.py
-    # ------------------------------------------------------------------
-    def getDrawReason(self):
-        """
-        Trả về chuỗi mô tả lý do hòa, hoặc None nếu chưa hòa.
-        Dùng trong main.py để hiển thị thông báo phù hợp.
-        """
-        if not self.stalemate:
-            return None
-        if self.threefold_repetition:
-            return "Hòa - Lặp lại vị trí 3 lần!"
-        if self.fifty_move_counter >= 100:
-            return "Hòa - Quy tắc 50 nước!"
-        return "Hòa - Hết nước đi!"
 
-
+# ────────────────────────────────────────────────────────────────────────────
 class CastleRights:
     def __init__(self, wks, bks, wqs, bqs):
         self.wks = wks
@@ -618,6 +688,7 @@ class CastleRights:
         self.bqs = bqs
 
 
+# ────────────────────────────────────────────────────────────────────────────
 class Move:
     ranks_to_rows = {"1": 7, "2": 6, "3": 5, "4": 4,
                      "5": 3, "6": 2, "7": 1, "8": 0}
@@ -656,10 +727,7 @@ class Move:
         if self.is_pawn_promotion:
             return self.getRankFile(self.end_row, self.end_col) + "Q"
         if self.is_castle_move:
-            if self.end_col == 1:
-                return "0-0-0"
-            else:
-                return "0-0"
+            return "0-0-0" if self.end_col == 1 else "0-0"
         if self.is_enpassant_move:
             return self.getRankFile(self.start_row, self.start_col)[0] + "x" + \
                    self.getRankFile(self.end_row, self.end_col) + " e.p."
@@ -691,3 +759,10 @@ class Move:
         if self.is_capture:
             move_string += "x"
         return move_string + end_square
+    
+    def get_state_id(self):
+        board_str = "".join(["".join(row) for row in self.board])
+        castling = f"{int(self.current_castling_rights.wks)}{int(self.current_castling_rights.wqs)}{int(self.current_castling_rights.bks)}{int(self.current_castling_rights.bqs)}"
+        ep = str(self.enpassant_possible) if self.enpassant_possible else "-"
+        turn = "w" if self.white_to_move else "b"
+        return f"{board_str}|{turn}|{castling}|{ep}"
