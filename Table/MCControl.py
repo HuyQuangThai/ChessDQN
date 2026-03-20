@@ -57,6 +57,7 @@ class MCControl:
         qs = []
         actions = self.env.state.getValidMoves()
         for a in actions:
+            print(type(a), a)
             a_str = a.get_uci()
             qs.append((a_str, self.table[s, a_str]))
         if len(qs) == 1:
