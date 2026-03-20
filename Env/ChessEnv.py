@@ -17,6 +17,7 @@ class ChessEnv:
         
         # Engine Stockfish để tính reward
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+        self._engine_call_count = 0
         
         # Lịch sử các state_id để phạt lặp nước
         self.state_history = []
@@ -69,6 +70,15 @@ class ChessEnv:
         board.turn = chess.WHITE if game_state.white_to_move else chess.BLACK
         
         return board
+    
+    def _restart_engine(self):
+        try:
+            if hasattr(self, 'engine'):
+                self.engine.quit()
+        except Exception as e:
+            pass
+        self.engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
+        self._engine_call_count = 0
 
     def _get_stockfish_eval(self, game_state: GameState, depth: int = 5) -> int:
         """Lấy điểm Centipawn từ góc nhìn của Trắng"""
@@ -85,14 +95,27 @@ class ChessEnv:
         if state_after.checkmate:
             return 1.0
         if state_after.stalemate:
-            return -0.5
+            return -0.05
             
         current_id = state_after.get_state_id()
         occurrence_penalty = self.state_history.count(current_id)
         if occurrence_penalty >= 2:
-            return -0.5
+            return -0.3
         
-        return 0.0
+        def material_score(state: GameState) -> int:
+            piece_values = {'p': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0}
+            score = 0
+            for r in state.board:
+                for c in r:
+                    piece_str = state.board[r][c]
+                    if piece_str != "--":
+                        value = piece_values[piece_str[1].lower()]
+                        score += value if piece_str[0] == 'w' else -value
+            return score if state_after.white_to_move else -score
+        
+        delta = material_score(state_after) - material_score(state_before)
+        r_material = float(np.tanh(delta / 9.0)) * 0.1
+        return r_material
 
     def _flip_uci(self, uci_str):
         """Lật tọa độ UCI nếu là Đen đi"""
@@ -146,6 +169,9 @@ class ChessEnv:
         return self.getState(), r, done
 
     def stockfish_step(self, depth=5, random_move_prob=0.0):
+        self._engine_call_count += 1
+        if self._engine_call_count > 1000:
+            self._restart_engine()
         """Let Stockfish (or random fallback) play one legal move."""
         valid_moves = self.state.getValidMoves()
         if len(valid_moves) == 0:

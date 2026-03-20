@@ -15,7 +15,7 @@ import chess.engine
 
 @dataclass
 class TrainConfig:
-    stockfish_path = "/usr/bin/stockfish"
+    stockfish_path = "/usr/game/stockfish"
     stockfish_depth = 5
     stockfish_random_move_prob = 0.15
     
