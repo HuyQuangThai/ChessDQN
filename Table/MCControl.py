@@ -57,7 +57,8 @@ class MCControl:
         qs = []
         actions = self.env.state.getValidMoves()
         for a in actions:
-            qs.append((a, self.table[s, a]))
+            a_str = a.get_uci()
+            qs.append((a_str, self.table[s, a_str]))
         if len(qs) == 1:
             return actions[0]
         
@@ -73,6 +74,7 @@ class MCControl:
     def improve(self, steps):
         v = self.firstVisit(steps)
         for s, a in v:
-            for i in range(len(v[s, a])):
-                self.table[s, a] = v[s, a][i]
+            a_str = a.get_uci()
+            for i in range(len(v[s, a_str])):
+                self.table[s, a_str] = v[s, a_str][i]
                 
