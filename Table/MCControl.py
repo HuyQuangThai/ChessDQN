@@ -12,7 +12,6 @@ class MCControl:
         
     def firstVisit(self, steps):
         v = {}
-        
         for s, a in set([(x[0], x[1]) for x in steps]):
             v[s, a] = []
             founded = False
@@ -27,11 +26,16 @@ class MCControl:
         return v
     
     def play(self, n=1):
+        win = 0
+        loss = 0
+        draw = 0
+        depth = 1
         for _ in range(n):
             steps = []
             self.env.reset()
             
             done = False
+            
             while not done:
                 state = self.env.state.get_state_id()
                 action = self.policy()
@@ -43,15 +47,34 @@ class MCControl:
                 steps.append((state, action_str, score))
                 
                 if done:
+                    if agent_reward >= 1:
+                        win += 1
+                    elif agent_reward <= -1:
+                        loss += 1
+                    else:
+                        draw += 1
                     break
                 
                 _, _, done = self.env.stockfish_step(
-                    depth= 1,
+                    depth= depth,
                     random_move_prob=self.cfg.stockfish_random_move_prob,
                 )
                 
             if done:
                 self.improve(steps)
+            
+            total = win + loss + draw
+            win_rate = win / total if total > 0 else 0
+            
+            if win_rate >= 0.35:
+                depth = 1
+            elif win_rate >= 0.45:
+                depth = 2
+            elif win_rate >= 0.55:
+                depth = 3
+            
+            if total % 100 == 0:
+                print(f"Episode {total} | Win rate: {win/total:.2%}")
     
     def policy(self):
         s = self.env.state.get_state_id()
@@ -75,7 +98,6 @@ class MCControl:
     def improve(self, steps):
         v = self.firstVisit(steps)
         for s, a in v:
-            a_str = a.get_uci()
-            for i in range(len(v[s, a_str])):
-                self.table[s, a_str] = v[s, a_str][i]
+            for i in range(len(v[s, a])):
+                self.table[s, a] = v[s, a][i]
                 

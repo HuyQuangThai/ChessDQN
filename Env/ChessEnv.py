@@ -16,8 +16,8 @@ class ChessEnv:
         self.encoder = EncodeBoard()
         
         # Engine Stockfish để tính reward
-        self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-        # self.engine = None
+        # self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+        self.engine = None
         self._engine_call_count = 0
         
         # Lịch sử các state_id để phạt lặp nước
@@ -29,7 +29,7 @@ class ChessEnv:
         return self.getState()
         
     def isTerm(self):
-        _ = self.state.getValidMoves() 
+        _ = self.state.getValidMoves()
         return self.state.checkmate or self.state.stalemate
         
     def getState(self):
@@ -146,6 +146,7 @@ class ChessEnv:
         move_uci_test = move_obj.get_uci()
 
         if move_uci_test not in valid_ucis:
+            print(f"Invalid move UCI: {move_uci_real} -> {move_uci_test}")
             return self.getState(), -1.0, True
 
         actual_move_obj = None
@@ -202,11 +203,11 @@ class ChessEnv:
         if move_uci_ai is None:
             return self.getState(), -1.0, True
         
-        # Lật bàn nếu là cờ đen (theo đúng logic Simulation)
-        if not self.state.white_to_move:
-            move_uci_real = self._flip_uci(move_uci_ai)
-        else:
-            move_uci_real = move_uci_ai
+        # if not self.state.white_to_move:
+        #     move_uci_real = self._flip_uci(move_uci_ai)
+        #     print(f"After flip: {move_uci_real}")
+        # else:
+        move_uci_real = move_uci_ai
 
         return self._apply_uci_move(move_uci_real)
         
