@@ -27,6 +27,7 @@ class ChessEnv:
     def reset(self):
         self.state = GameState()
         self.state_history.clear()
+        self._restart_engine()
         return self.getState()
         
     def isTerm(self):
@@ -189,9 +190,6 @@ class ChessEnv:
         return self.getState(), r, done
 
     def stockfish_step(self, depth=5, random_move_prob=0.0):
-        self._engine_call_count += 1
-        if self._engine_call_count > 1000:
-            self._restart_engine()
         """Let Stockfish (or random fallback) play one legal move."""
         valid_moves = self.state.getValidMoves()
         if len(valid_moves) == 0:
