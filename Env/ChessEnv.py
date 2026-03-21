@@ -83,6 +83,13 @@ class ChessEnv:
             board.ep_square = chess.square(ep_col, 7 - ep_row)
         else:
             board.ep_square = None
+
+        # Defensive cleanup for rare desync states from custom GameState logic.
+        # python-chess expects castling rights to match actual king/rook placement,
+        # and en-passant square to be currently legal.
+        board.castling_rights = board.clean_castling_rights()
+        if board.ep_square is not None and not board.has_legal_en_passant():
+            board.ep_square = None
             
         board.halfmove_clock = game_state.fifty_move_counter
         return board
@@ -201,7 +208,8 @@ class ChessEnv:
         try:
             py_board = self._game_state_to_chess_board(self.state)
             if not py_board.is_valid():
-                raise ValueError("Invalid chess board state for Stockfish.")
+                status = py_board.status()
+                raise ValueError(f"Invalid chess board state for Stockfish. status={status}, fen={py_board.fen()}")
         
             result = self.engine.play(py_board, chess.engine.Limit(depth=depth))
 
