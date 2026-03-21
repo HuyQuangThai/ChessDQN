@@ -16,6 +16,7 @@ class ChessEnv:
         self.encoder = EncodeBoard()
         
         # Engine Stockfish để tính reward
+        self.stockfish_path = stockfish_path
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
         # self.engine = None
         self._engine_call_count = 0
