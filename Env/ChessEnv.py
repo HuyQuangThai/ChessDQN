@@ -70,11 +70,11 @@ class ChessEnv:
         
         board.castling_rights = chess.BB_EMPTY
         if game_state.current_castling_rights.wks:
-            board.castling_rights |= chess.BB_E1
+            board.castling_rights |= chess.BB_H1
         if game_state.current_castling_rights.wqs:
             board.castling_rights |= chess.BB_A1
         if game_state.current_castling_rights.bks:
-            board.castling_rights |= chess.BB_E8
+            board.castling_rights |= chess.BB_H8
         if game_state.current_castling_rights.bqs:
             board.castling_rights |= chess.BB_A8
             
