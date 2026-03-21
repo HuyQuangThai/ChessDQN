@@ -27,7 +27,6 @@ class ChessEnv:
     def reset(self):
         self.state = GameState()
         self.state_history.clear()
-        self._restart_engine()
         return self.getState()
         
     def isTerm(self):
@@ -40,10 +39,7 @@ class ChessEnv:
         return self.encoder.encode_board_full(self.state)
 
     def _game_state_to_chess_board(self, game_state):
-        """
-        Hàm helper DỊCH từ GameState sang chess.Board CHỈ ĐỂ đút vào Stockfish.
-        """
-        board = chess.Board(None) # Bàn cờ trống
+        board = chess.Board(None)
         piece_map = {
             'wp': chess.Piece(chess.PAWN, chess.WHITE),
             'wN': chess.Piece(chess.KNIGHT, chess.WHITE),
@@ -190,6 +186,9 @@ class ChessEnv:
         return self.getState(), r, done
 
     def stockfish_step(self, depth=5, random_move_prob=0.0):
+        self._engine_call_count += 1
+        if self._engine_call_count > 1000:
+            self._restart_engine()
         """Let Stockfish (or random fallback) play one legal move."""
         valid_moves = self.state.getValidMoves()
         if len(valid_moves) == 0:
@@ -199,13 +198,22 @@ class ChessEnv:
             move_uci_real = random.choice(valid_moves).get_uci()
             return self._apply_uci_move(move_uci_real)
 
-        py_board = self._game_state_to_chess_board(self.state)
-        result = self.engine.play(py_board, chess.engine.Limit(depth=depth))
+        try:
+            py_board = self._game_state_to_chess_board(self.state)
+            if not py_board.is_valid():
+                raise ValueError("Invalid chess board state for Stockfish.")
+        
+            result = self.engine.play(py_board, chess.engine.Limit(depth=depth))
 
-        if result.move is None:
+            if result.move is None:
+                move_uci_real = random.choice(valid_moves).get_uci()
+            else:
+                move_uci_real = result.move.get_uci()
+                
+        except (chess.engine.EngineTerminatedError, chess.engine.EngineError, ValueError) as e:
+            print(f"Engine error: {e}, restarting + fallback random")
+            self._restart_engine()
             move_uci_real = random.choice(valid_moves).get_uci()
-        else:
-            move_uci_real = result.move.uci()
 
         return self._apply_uci_move(move_uci_real)
 
