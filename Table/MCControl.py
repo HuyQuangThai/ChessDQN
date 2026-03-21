@@ -36,7 +36,7 @@ class MCControl:
                 state = self.env.state.get_state_id()
                 action = self.policy()
                 
-                _, agent_reward, done = self.env.step(action)
+                _, agent_reward, done = self.env.step(action.moveID)
                 
                 score = agent_reward
                 steps.append((state, action, score))
@@ -57,7 +57,6 @@ class MCControl:
         qs = []
         actions = self.env.state.getValidMoves()
         for a in actions:
-            print(type(a), a)
             a_str = a.get_uci()
             qs.append((a_str, self.table[s, a_str]))
         if len(qs) == 1:
