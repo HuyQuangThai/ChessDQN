@@ -35,6 +35,15 @@ class Move:
         if isinstance(other, Move):
             return self.moveID == other.moveID
         return False
+    
+    def get_uci(self):
+        start_sq = self.getRankFile(self.start_row, self.start_col)
+        end_sq = self.getRankFile(self.end_row, self.end_col)
+        move_str = start_sq + end_sq
+        if self.is_pawn_promotion:
+            move_str += self.promotion_choice.lower()
+
+        return move_str
 
     def getChessNotation(self):
         if self.is_pawn_promotion:
@@ -59,19 +68,9 @@ class Move:
             else:
                 return self.piece_moved[1] + self.getRankFile(self.end_row, self.end_col)
 
-        # TODO Disambiguating moves
-
     def getRankFile(self, row, col):
         return self.cols_to_files[col] + self.rows_to_ranks[row]
-
-    def get_uci(self):
-        start_sq = self.getRankFile(self.start_row, self.start_col)
-        end_sq = self.getRankFile(self.end_row, self.end_col)
-        move_str = start_sq + end_sq
-        if self.is_pawn_promotion:
-            move_str += self.promotion_choice.lower()
-
-        return move_str
+    
     def __str__(self):
         if self.is_castle_move:
             return "0-0" if self.end_col == 6 else "0-0-0"
