@@ -103,6 +103,29 @@ class ChessEnv:
         self.engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
         self._engine_call_count = 0
 
+    def _status_to_names(self, status):
+        status_flags = [
+            ("STATUS_NO_WHITE_KING", chess.STATUS_NO_WHITE_KING),
+            ("STATUS_NO_BLACK_KING", chess.STATUS_NO_BLACK_KING),
+            ("STATUS_TOO_MANY_KINGS", chess.STATUS_TOO_MANY_KINGS),
+            ("STATUS_TOO_MANY_WHITE_PAWNS", chess.STATUS_TOO_MANY_WHITE_PAWNS),
+            ("STATUS_TOO_MANY_BLACK_PAWNS", chess.STATUS_TOO_MANY_BLACK_PAWNS),
+            ("STATUS_PAWNS_ON_BACKRANK", chess.STATUS_PAWNS_ON_BACKRANK),
+            ("STATUS_TOO_MANY_WHITE_PIECES", chess.STATUS_TOO_MANY_WHITE_PIECES),
+            ("STATUS_TOO_MANY_BLACK_PIECES", chess.STATUS_TOO_MANY_BLACK_PIECES),
+            ("STATUS_BAD_CASTLING_RIGHTS", chess.STATUS_BAD_CASTLING_RIGHTS),
+            ("STATUS_INVALID_EP_SQUARE", chess.STATUS_INVALID_EP_SQUARE),
+            ("STATUS_OPPOSITE_CHECK", chess.STATUS_OPPOSITE_CHECK),
+            ("STATUS_EMPTY", chess.STATUS_EMPTY),
+            ("STATUS_RACE_CHECK", chess.STATUS_RACE_CHECK),
+            ("STATUS_RACE_OVER", chess.STATUS_RACE_OVER),
+            ("STATUS_RACE_MATERIAL", chess.STATUS_RACE_MATERIAL),
+            ("STATUS_TOO_MANY_CHECKERS", chess.STATUS_TOO_MANY_CHECKERS),
+            ("STATUS_IMPOSSIBLE_CHECK", chess.STATUS_IMPOSSIBLE_CHECK),
+        ]
+        names = [name for name, mask in status_flags if status & mask]
+        return "|".join(names) if names else "STATUS_VALID"
+
     def _get_stockfish_eval(self, game_state: GameState, depth: int = 5) -> int:
         """Lấy điểm Centipawn từ góc nhìn của Trắng"""
         py_board = self._game_state_to_chess_board(game_state)
@@ -167,6 +190,20 @@ class ChessEnv:
         valid_ucis = [m.get_uci() for m in valid_moves]
         move_uci_test = move_obj.get_uci()
 
+        py_board = self._game_state_to_chess_board(self.state)
+        if not py_board.is_valid():
+            status = py_board.status()
+            print(
+                f"State invalid before apply move. status={status} ({self._status_to_names(status)}) | "
+                f"FEN: {py_board.fen()}"
+            )
+            return self.getState(), -1.0, True
+
+        legal_uci = {m.uci() for m in py_board.legal_moves}
+        if move_uci_test not in legal_uci:
+            print(f"Move rejected by python-chess legality: {move_uci_test}")
+            return self.getState(), -1.0, True
+
         if move_uci_test not in valid_ucis:
             print(f"Invalid move UCI: {move_uci_real} -> {move_uci_test}")
             return self.getState(), -1.0, True
@@ -210,11 +247,14 @@ class ChessEnv:
             if not py_board.is_valid():
                 status = py_board.status()
                 if status != chess.STATUS_VALID:
-                        print(f"Status: {status} | FEN: {py_board.fen()}")
-                        print(f"Turn: {self.state.white_to_move}")
-                        print(f"White king: {self.state.white_king_location}")
-                        print(f"Black king: {self.state.black_king_location}")
-                raise ValueError(f"Invalid chess board state for Stockfish. status={status}, fen={py_board.fen()}")
+                    print(f"Status: {status} ({self._status_to_names(status)}) | FEN: {py_board.fen()}")
+                    print(f"Turn: {self.state.white_to_move}")
+                    print(f"White king: {self.state.white_king_location}")
+                    print(f"Black king: {self.state.black_king_location}")
+                raise ValueError(
+                    f"Invalid chess board state for Stockfish. status={status} "
+                    f"({self._status_to_names(status)}), fen={py_board.fen()}"
+                )
         
             result = self.engine.play(py_board, chess.engine.Limit(depth=depth))
 
