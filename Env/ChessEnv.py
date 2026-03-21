@@ -125,6 +125,11 @@ class ChessEnv:
         ]
         names = [name for name, mask in status_flags if status & mask]
         return "|".join(names) if names else "STATUS_VALID"
+    
+    def getValidMoves_chess(self):
+        """Lấy valid moves từ python-chess thay vì GameState"""
+        py_board = self._game_state_to_chess_board(self.state)
+        return [move.uci() for move in py_board.legal_moves]
 
     def _get_stockfish_eval(self, game_state: GameState, depth: int = 5) -> int:
         """Lấy điểm Centipawn từ góc nhìn của Trắng"""
@@ -234,7 +239,7 @@ class ChessEnv:
         if self._engine_call_count > 1000:
             self._restart_engine()
         """Let Stockfish (or random fallback) play one legal move."""
-        valid_moves = self.state.getValidMoves()
+        valid_moves = self.getValidMoves_chess()
         if len(valid_moves) == 0:
             return self.getState(), 0.0, self.isTerm()
 
