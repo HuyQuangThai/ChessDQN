@@ -71,6 +71,23 @@ class ChessEnv:
         # Map lượt đi
         board.turn = chess.WHITE if game_state.white_to_move else chess.BLACK
         
+        board.castling_rights = chess.BB_EMPTY
+        if game_state.current_castling_rights.wks:
+            board.castling_rights |= chess.BB_E1
+        if game_state.current_castling_rights.wqs:
+            board.castling_rights |= chess.BB_A1
+        if game_state.current_castling_rights.bks:
+            board.castling_rights |= chess.BB_E8
+        if game_state.current_castling_rights.bqs:
+            board.castling_rights |= chess.BB_A8
+            
+        if game_state.enpassant_possible:
+            ep_square = chess.square(game_state.enpassant_target_col, 7 - game_state.enpassant_target_row)
+            board.ep_square = ep_square
+        else:
+            board.ep_square = None
+            
+        board.halfmove_clock = game_state.fifty_move_counter
         return board
     
     def _restart_engine(self):
