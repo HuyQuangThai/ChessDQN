@@ -30,6 +30,19 @@ class MCControl:
         loss = 0
         draw = 0
         depth = 1
+
+        def update_result_counts():
+            nonlocal win, loss, draw
+            if self.env.state.checkmate:
+                # Side to move in checkmate is the loser.
+                # Agent always plays White in this training loop.
+                if self.env.state.white_to_move:
+                    loss += 1
+                else:
+                    win += 1
+            else:
+                draw += 1
+
         for _ in range(n):
             steps = []
             self.env.reset()
@@ -47,18 +60,17 @@ class MCControl:
                 steps.append((state, action_str, score))
                 
                 if done:
-                    if agent_reward >= 1:
-                        win += 1
-                    elif agent_reward <= -1:
-                        loss += 1
-                    else:
-                        draw += 1
+                    update_result_counts()
                     break
                 
                 _, _, done = self.env.stockfish_step(
                     depth= depth,
                     random_move_prob=self.cfg.stockfish_random_move_prob,
                 )
+
+                if done:
+                    update_result_counts()
+                    break
                 
             if done:
                 self.improve(steps)
