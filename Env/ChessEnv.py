@@ -244,7 +244,7 @@ class ChessEnv:
             return self.getState(), 0.0, self.isTerm()
 
         if random.random() < random_move_prob:
-            move_uci_real = random.choice(valid_moves).get_uci()
+            move_uci_real = random.choice(valid_moves)
             return self._apply_uci_move(move_uci_real)
 
         try:
@@ -264,7 +264,7 @@ class ChessEnv:
             result = self.engine.play(py_board, chess.engine.Limit(depth=depth))
 
             if result.move is None:
-                move_uci_real = random.choice(valid_moves).get_uci()
+                move_uci_real = random.choice(valid_moves)
             else:
                 move_uci_real = result.move.uci()
                 

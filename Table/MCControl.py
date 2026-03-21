@@ -34,8 +34,6 @@ class MCControl:
         def update_result_counts():
             nonlocal win, loss, draw
             if self.env.state.checkmate:
-                # Side to move in checkmate is the loser.
-                # Agent always plays White in this training loop.
                 if self.env.state.white_to_move:
                     loss += 1
                 else:
@@ -87,6 +85,7 @@ class MCControl:
             
             if total % 100 == 0 and total > 0:
                 print(f"Episode {total} | Win rate: {win/total:.2%}")
+                print(f"Win: {win}, Loss: {loss}, Draw: {draw}")
     
     def policy(self):
         s = self.env.state.get_state_id()
