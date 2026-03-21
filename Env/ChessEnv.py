@@ -82,8 +82,8 @@ class ChessEnv:
             board.castling_rights |= chess.BB_A8
             
         if game_state.enpassant_possible:
-            ep_square = chess.square(game_state.enpassant_target_col, 7 - game_state.enpassant_target_row)
-            board.ep_square = ep_square
+            ep_row, ep_col = game_state.enpassant_possible
+            board.ep_square = chess.square(ep_col, 7 - ep_row)
         else:
             board.ep_square = None
             
