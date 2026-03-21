@@ -35,8 +35,8 @@ class MCControl:
             while not done:
                 state = self.env.state.get_state_id()
                 action = self.policy()
-                
-                _, agent_reward, done = self.env.step(action.moveID)
+                action_idx = self.env.mapper.encode(action.get_uci())
+                _, agent_reward, done = self.env.step(action_idx)
                 
                 score = agent_reward
                 steps.append((state, action, score))
