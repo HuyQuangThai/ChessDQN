@@ -73,7 +73,7 @@ class MCControl:
             elif win_rate >= 0.55:
                 depth = 3
             
-            if total % 100 == 0:
+            if total % 100 == 0 and total > 0:
                 print(f"Episode {total} | Win rate: {win/total:.2%}")
     
     def policy(self):

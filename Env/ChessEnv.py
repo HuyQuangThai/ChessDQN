@@ -85,14 +85,6 @@ class ChessEnv:
             board.ep_square = None
             
         board.halfmove_clock = game_state.fifty_move_counter
-        
-        status = board.status()
-        if status != chess.STATUS_VALID:
-            print(f"Board status code: {status}")
-            print(f"FEN: {board.fen()}")
-            for r in range(8):
-                print(game_state.board[r])
-        
         return board
     
     def _restart_engine(self):
