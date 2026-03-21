@@ -70,7 +70,7 @@ class MCControl:
             p = [1 / len(indices)] * len(indices)
         else:
             p = [(1 - self.epsilon) / len(indices) if i in indices else self.epsilon / (len(qs) - len(indices)) for i in range(len(qs))]
-        return int(np.random.choice(actions, p=p))
+        return np.random.choice(actions, p=p)
     
     def improve(self, steps):
         v = self.firstVisit(steps)
