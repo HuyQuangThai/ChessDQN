@@ -85,6 +85,14 @@ class ChessEnv:
             board.ep_square = None
             
         board.halfmove_clock = game_state.fifty_move_counter
+        
+        status = board.status()
+        if status != chess.STATUS_VALID:
+            print(f"Board status code: {status}")
+            print(f"FEN: {board.fen()}")
+            for r in range(8):
+                print(game_state.board[r])
+        
         return board
     
     def _restart_engine(self):
@@ -208,7 +216,7 @@ class ChessEnv:
             if result.move is None:
                 move_uci_real = random.choice(valid_moves).get_uci()
             else:
-                move_uci_real = result.move.get_uci()
+                move_uci_real = result.move.uci()
                 
         except (chess.engine.EngineTerminatedError, chess.engine.EngineError, ValueError) as e:
             print(f"Engine error: {e}, restarting + fallback random")
