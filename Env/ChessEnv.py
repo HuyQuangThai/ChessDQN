@@ -209,6 +209,11 @@ class ChessEnv:
             py_board = self._game_state_to_chess_board(self.state)
             if not py_board.is_valid():
                 status = py_board.status()
+                if status != chess.STATUS_VALID:
+                        print(f"Status: {status} | FEN: {py_board.fen()}")
+                        print(f"Turn: {self.state.white_to_move}")
+                        print(f"White king: {self.state.white_king_location}")
+                        print(f"Black king: {self.state.black_king_location}")
                 raise ValueError(f"Invalid chess board state for Stockfish. status={status}, fen={py_board.fen()}")
         
             result = self.engine.play(py_board, chess.engine.Limit(depth=depth))
